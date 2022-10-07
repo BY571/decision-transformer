@@ -17,7 +17,7 @@ defaults:
   - _self_
   - env: hopper
   - algorithm: decision_transformer
-  - predictor: gpt2
+  - predictor: gpt2 # TODO: add predictor to algorithm not here!
   - buffer: r2gbuffer
 
 hydra:

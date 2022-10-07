@@ -2,7 +2,7 @@ import transformers
 from decision_transformer.models.trajectory_gpt2 import GPT2Model
 
 def get_transformer(name: str="gpt2", embedding_dim: int=256, **kwargs):
-    if name == "gpt2":
+    if name == "gpt2" or name == "stochastic_gpt2":
         config = transformers.GPT2Config(
             vocab_size=1,  # doesn't matter -- we don't use the vocab
             n_embd=embedding_dim,

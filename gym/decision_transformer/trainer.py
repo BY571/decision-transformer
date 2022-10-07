@@ -9,8 +9,8 @@ from tqdm import tqdm
 import sys
 
 from decision_transformer.predictors.utils import get_transformer
-from decision_transformer.predictors.decision_transformer import DTPredictor
-from decision_transformer.algorithm.decision_transformer import DecisionTransformer
+from decision_transformer.predictors.decision_transformer import DTPredictor, StochDTPredictor
+from decision_transformer.algorithm.decision_transformer import DecisionTransformer, OnlineDecisionTransformer
 from buffer.trajectory_buffer import ReplayBuffer
 
 
@@ -29,23 +29,16 @@ def get_env(env_name):
     return env, env.observation_space.shape[0], env.action_space.shape[0]
 
 def get_predictor(state_dim, act_dim, config):
+    transformer = get_transformer(name=config.predictor.name,
+                                    embedding_dim=config.predictor.hidden_size,
+                                    n_layer=config.predictor.n_layer,
+                                    n_head=config.predictor.n_head,
+                                    n_inner= config.predictor.n_inner,
+                                    activation_function=config.predictor.activation_function,
+                                    n_positions=config.predictor.n_positions,
+                                    resid_pdrop=config.predictor.resid_pdrop,
+                                    attn_pdrop= config.predictor.attn_pdrop)
     if config.predictor.name == "gpt2":
-        transformer = get_transformer(name=config.predictor.name,
-                                      embedding_dim=config.predictor.hidden_size,
-                                      n_layer=config.predictor.n_layer,
-                                      n_head=config.predictor.n_head,
-                                      n_inner= config.predictor.n_inner,
-                                      activation_function=config.predictor.activation_function,
-                                      n_positions=config.predictor.n_positions,
-                                      resid_pdrop=config.predictor.resid_pdrop,
-                                      attn_pdrop= config.predictor.attn_pdrop)
-                                    #   kwargs={"n_layer": config.predictor.n_layer,
-                                    #           "n_head": config.predictor.n_head,
-                                    #           "n_inner": config.predictor.n_inner,
-                                    #           "activation_function": config.predictor.activation_function,
-                                    #           "n_positions": config.predictor.n_positions,
-                                    #           "resid_pdrop": config.predictor.resid_pdrop,
-                                    #           "attn_pdrop": config.predictor.attn_pdrop})
         return DTPredictor(state_dim=state_dim,
                            act_dim=act_dim,
                            transformer=transformer,
@@ -53,13 +46,28 @@ def get_predictor(state_dim, act_dim, config):
                            max_length=config.predictor.K,
                            max_ep_len=config.env.max_ep_len,
                            action_tanh=config.predictor.action_tanh)
-    else:
+    elif config.predictor.name == "stochastic_gpt2":
+        return StochDTPredictor(state_dim,
+                                act_dim=act_dim,
+                                transformer=transformer,
+                                hidden_size=config.predictor.hidden_size,
+                                max_length=config.predictor.K,
+                                max_ep_len=config.env.max_ep_len,
+                                action_tanh=config.predictor.action_tanh,
+                                log_std_min=config.predictor.log_std_min,
+                                log_std_max=config.predictor.log_std_max,
+                                remove_pos_embs=config.predictor.remove_pos_embs,
+                                stochastic_tanh=config.predictor.stochastic_tanh,
+                                approximate_entropy_samples=config.predictor.approximate_entropy_samples)
+    else: 
         raise NotImplementedError
 
 
 def get_algorithm(state_dim, act_dim, config):
     if config.algorithm.name == "dt":
         return DecisionTransformer(get_predictor(state_dim, act_dim, config), config)
+    elif config.algorithm.name == "online-dt":
+        return OnlineDecisionTransformer(predictor=get_predictor(state_dim, act_dim, config), config=config)
     else:
         raise NotImplementedError
 
@@ -90,6 +98,7 @@ class Trainer():
         self.device = config.device
         self.max_ep_len = config.env.max_ep_len
         self.num_updates = config.num_updates
+        self.max_interactions = config.max_interactions
         
         self.state_mean = np.array(config.env.state_mean)
         self.state_std = np.array(config.env.state_std)
@@ -197,7 +206,7 @@ class Trainer():
             states, actions, rewards, rtg, timesteps, attention_mask = self.buffer.get_batch()
             loss_info = self.algo.train(states, actions, rewards, rtg, timesteps, attention_mask)
             self.update_steps += 1
-            self.train_losses.append(loss_info)
+            self.train_losses.append(loss_info["training/loss"])
         return loss_info
 
     def update_target_return(self, achieved_return):
@@ -205,7 +214,7 @@ class Trainer():
             self.target_return = achieved_return
     
     def train(self, wandb):
-        
+        wandb.watch(self.algo.predictor)
         for ep in tqdm(range(1, self.epochs+1), desc="Training", file=sys.stdout):
             loss_info = self.update()
 
@@ -220,18 +229,20 @@ class Trainer():
                         "collect/trajectory_lengths": steps,
                         "collect/target_reward": self.target_return,
                         "collect/buffer_size": self.buffer.__len__(),
-                        "training/loss": loss_info,
                         "training/loss_mean": np.mean(self.train_losses),
                         "training/loss_std": np.std(self.train_losses),
                         "training/updates": self.num_updates,
                         "training/epoch": ep
                         }
-
+            log_info.update(loss_info)
             wandb.log(log_info)
             if self.print_logs:
                 print("\n" + '=' * 80)
                 print(f'Iteration {ep}')
                 for k, v in log_info.items():
                     print(f'{k}: {v}')
+            
+            if self.env_interaction_steps >= self.max_interactions:
+                break
                     
         
