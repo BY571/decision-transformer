@@ -1,0 +1,25 @@
+project: Online-Decision-Transformer
+run_name: debug
+mode: offline
+
+epochs: 600
+max_interactions: 100000
+init_target_return: 1.0
+prefill_episodes: 10
+num_updates: 25 # utd ratio
+batch_size: 64
+
+print_logs: True
+device: cuda:0
+seed: 42
+
+defaults:
+  - _self_
+  - env: hopper
+  - algorithm: decision_transformer
+  - predictor: gpt2
+  - buffer: r2gbuffer
+
+hydra:
+  run: 
+    dir: outputs/training/${now:%Y-%m-%d}/${run_name}
