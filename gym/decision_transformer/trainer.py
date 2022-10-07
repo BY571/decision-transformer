@@ -96,6 +96,7 @@ class Trainer():
         
         # get_env
         self.env, self.state_dim, self.act_dim = get_env(config.env.name)
+        self.env.seed(config.seed)
         # get_algorithm
         self.algo = get_algorithm(self.state_dim, self.act_dim, config)
         # get_data_source
@@ -191,7 +192,8 @@ class Trainer():
     
     def update(self, ):
         self.algo.set_train_mode()
-        for _ in tqdm(range(1, self.num_updates+1), desc="Updates", file=sys.stdout):
+
+        for _ in tqdm(range(1, self.num_updates+1), desc=f"Updates: {self.update_steps} - {self.update_steps + self.num_updates}", file=sys.stdout, leave=False):
             states, actions, rewards, rtg, timesteps, attention_mask = self.buffer.get_batch()
             loss_info = self.algo.train(states, actions, rewards, rtg, timesteps, attention_mask)
             self.update_steps += 1
