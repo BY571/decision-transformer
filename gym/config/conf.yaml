@@ -1,13 +1,19 @@
 project: Online-Decision-Transformer
 run_name: debug
-mode: offline
+mode: offline   # offline to not log to wandb
 
-epochs: 600
+epochs: 200
 max_interactions: 100000
-init_target_return: 1.0
+init_target_return: 1.0 # 3600
 prefill_episodes: 10
-num_updates: 25 # utd ratio
-batch_size: 64
+prefill_offline_data: True
+num_updates: 300 # utd ratio
+batch_size: 256
+
+# evaluation
+eval_runs: 10
+eval_every: 1 # eval every x epochs
+eval_context: 5
 
 print_logs: True
 device: cuda:0
@@ -16,7 +22,7 @@ seed: 42
 defaults:
   - _self_
   - env: hopper
-  - algorithm: dt
+  - algorithm: odt
   - buffer: r2gbuffer
 
 hydra:

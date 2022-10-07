@@ -6,7 +6,9 @@ from torch import nn, Tensor
 import numpy as np
 import gym
 from tqdm import tqdm
+import os
 import sys
+import pickle
 
 from decision_transformer.predictors.utils import get_transformer
 from decision_transformer.predictors.decision_transformer import DTPredictor, StochDTPredictor
@@ -119,7 +121,35 @@ class Trainer():
         self.update_steps = 0
         
         # prefill buffer
-        self.prefill_buffer(config.prefill_episodes)
+        if config.prefill_offline_data:
+            self.load_offline_data2buffer(config)
+        else:
+            self.prefill_buffer(config.prefill_episodes)
+        
+    def load_offline_data2buffer(self, config):
+        # get current working directory
+        cwg = os.getcwd()
+        root_path, _ = cwg.split("outputs") # split at outputs as we are currently in outputs 
+        # load dataset
+        dataset_path = f'data/{config.env.name}-{config.env.dataset}-v2.pkl'
+        # combine paths
+        dataset_path = root_path + dataset_path
+        with open(dataset_path, 'rb') as f:
+            trajectories = pickle.load(f)
+        # sort trajectories from worst to best
+        returns = []
+        for path in trajectories:
+            returns.append(path['rewards'].sum())
+        returns = np.array(returns)
+        sorted_inds = np.argsort(returns)  # lowest to highest
+        # select best x based on buffer size
+        trajectories = [trajectories[index] for index in sorted_inds]
+        trajectories = trajectories[config.buffer.max_size:]
+        # add to buffer
+        for traj in trajectories:
+            self.buffer.add_sample(states=traj["observations"], actions=traj["actions"], rewards=traj["rewards"])
+        
+        print(f"Buffer filled with {self.buffer.__len__()} expert trajectories!")
         
     def prefill_buffer(self, prefill_episodes=10):
         achieved_rewards = []

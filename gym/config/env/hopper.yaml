@@ -1,4 +1,5 @@
 name: hopper
+dataset: medium
 max_ep_len: 1000
 env_targets: [3600, 1800]  # evaluation conditioning targets
 scale: 1000.  # normalization for rewards/returns

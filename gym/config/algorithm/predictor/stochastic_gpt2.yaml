@@ -13,5 +13,5 @@ attn_pdrop: 0.1
 log_std_min: -20
 log_std_max: 2
 remove_pos_embs: False
-stochastic_tanh: False
+stochastic_tanh: True
 approximate_entropy_samples: 1000

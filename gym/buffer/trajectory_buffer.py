@@ -40,14 +40,14 @@ class ReplayBuffer():
                                # r2g=r2g,
                                summed_rewards=sum(rewards),
                                traj_len=len(rewards))
-        self.buffer.append(traj)
-        
+        # insert left on first position
+        self.buffer.insert(0, traj)
+        # keep the max buffer size - cutting off oldest element
+        self.buffer = self.buffer[:self.max_size]
     
     def sort(self):
         #sort buffer
         self.buffer = sorted(self.buffer, key = lambda i: i.summed_rewards, reverse=True)
-        # keep the max buffer size
-        self.buffer = self.buffer[:self.max_size]
     
     def get_random_samples(self, batch_size):
         self.sort()
