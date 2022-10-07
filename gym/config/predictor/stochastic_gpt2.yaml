@@ -1,0 +1,17 @@
+name: stochastic_gpt2
+K: 20
+action_tanh: True
+hidden_size: 128
+n_layer: 3
+n_head: 1
+n_inner: 512 # 4 * 128
+activation_function: relu
+n_positions: 1024
+resid_pdrop: 0.1
+attn_pdrop: 0.1
+
+log_std_min: -20
+log_std_max: 2
+remove_pos_embs: False
+stochastic_tanh: False
+approximate_entropy_samples: 1000
