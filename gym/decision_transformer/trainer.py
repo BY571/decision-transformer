@@ -45,7 +45,7 @@ def get_predictor(state_dim, act_dim, config):
                            act_dim=act_dim,
                            transformer=transformer,
                            hidden_size=config.algorithm.predictor.hidden_size,
-                           max_length=config.algorithm.predictor.K,
+                           max_length=config.eval_context,
                            max_ep_len=config.env.max_ep_len,
                            action_tanh=config.algorithm.predictor.action_tanh)
     elif config.algorithm.predictor.name == "stochastic_gpt2":
@@ -53,7 +53,7 @@ def get_predictor(state_dim, act_dim, config):
                                 act_dim=act_dim,
                                 transformer=transformer,
                                 hidden_size=config.algorithm.predictor.hidden_size,
-                                max_length=config.algorithm.predictor.K,
+                                max_length=config.eval_context,
                                 max_ep_len=config.env.max_ep_len,
                                 action_tanh=config.algorithm.predictor.action_tanh,
                                 log_std_min=config.algorithm.predictor.log_std_min,
@@ -101,6 +101,8 @@ class Trainer():
         self.max_ep_len = config.env.max_ep_len
         self.num_updates = config.num_updates
         self.max_interactions = config.max_interactions
+        
+        self.eval_runs = config.eval_runs
         
         self.state_mean = np.array(config.env.state_mean)
         self.state_std = np.array(config.env.state_std)
@@ -168,8 +170,23 @@ class Trainer():
         states, actions, rewards = np.stack(state_history), np.stack(action_history), np.stack(reward_history)
         self.buffer.add_sample(states=states, actions=actions, rewards=rewards)
         return sum(rewards), len(rewards)
+    
+    def evaluate(self, target_return):
+        returns = []
+        traj_len = []
+        self.algo.set_eval_mode()
+        for i in range(self.eval_runs):
+            _, _, reward_history = self.gather_episode(target_return, eval=True)
+            returns_ = np.stack(reward_history)
+            returns.append(np.sum(returns_))
+            traj_len.append(len(returns_))
 
-    def gather_episode(self, target_return):
+        return {"evaluate/return_mean": np.mean(returns),
+                "evaluate/return_std": np.std(returns),
+                "evaluate/traj_len_mean": np.mean(traj_len),
+                "evaluate/traj_len_std": np.std(traj_len)}
+    
+    def gather_episode(self, target_return, eval=False):
 
         # TODO: Use standard scaler? for now default values from each env
         state_mean = torch.from_numpy(self.state_mean).to(self.device)
@@ -201,6 +218,7 @@ class Trainer():
                 rewards.to(dtype=torch.float32),
                 target_return.to(dtype=torch.float32),
                 timesteps.to(dtype=torch.long),
+                eval=eval,
             )
             actions[-1] = action
             action = action.detach().cpu().numpy()
@@ -246,13 +264,18 @@ class Trainer():
     def train(self, wandb):
         wandb.watch(self.algo.predictor)
         for ep in tqdm(range(1, self.epochs+1), desc="Training", file=sys.stdout):
-            loss_info = self.update()
-
+            
+            # Gather new experience
             return_, steps = self.collect_samples(target_return=self.target_return)
             self.env_interaction_steps += steps
             self.update_target_return(return_)
 
-            # TODO: add eval
+            # Train Transformer
+            loss_info = self.update()
+            
+            # Evaluate
+            eval_info = self.evaluate(target_return=self.target_return)
+            loss_info.update(eval_info)
             
             log_info = {"collect/reward": return_,
                         "collect/steps": self.env_interaction_steps,

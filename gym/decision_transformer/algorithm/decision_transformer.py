@@ -93,10 +93,10 @@ class OnlineDecisionTransformer(BaseAlgo):
         self.loss_fn = lambda a_log_prob, entropies: -torch.mean(a_log_prob) - torch.exp(self.log_entropy_multiplier.detach()) * torch.mean(entropies)
         self.entropy_loss_fn = lambda entropies: torch.exp(self.log_entropy_multiplier) * (torch.mean(entropies.detach()) - self.target_entropy)
 
-    def get_action(self, states, actions, rewards, returns_to_go, timesteps, **kwargs):
+    def get_action(self, states, actions, rewards, returns_to_go, timesteps, eval=False, **kwargs):
         self.set_eval_mode()
         with torch.no_grad():
-            return self.predictor.get_action(states, actions, rewards, returns_to_go, timesteps, **kwargs)
+            return self.predictor.get_action(states, actions, rewards, returns_to_go, timesteps, eval, **kwargs)
     
     def set_train_mode(self, ):
         self.predictor.train()

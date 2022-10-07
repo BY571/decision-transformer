@@ -159,10 +159,9 @@ class StochDTPredictor(BasePredictor):
         # self.predict_return = torch.nn.Linear(hidden_size, 1)
         
 
-    def forward(self, states, actions, rewards, returns_to_go, timesteps, attention_mask=None):
+    def forward(self, states, actions, rewards, returns_to_go, timesteps, attention_mask=None, eval=False):
 
         batch_size, seq_length = states.shape[0], states.shape[1]
-
         if attention_mask is None:
             # attention mask for GPT: 1 if can be attended to, 0 if not
             attention_mask = torch.ones((batch_size, seq_length), dtype=torch.long)
@@ -212,6 +211,7 @@ class StochDTPredictor(BasePredictor):
         # Bound log of standard deviations
         log_stds = torch.clamp(log_stds, self.log_std_min, self.log_std_max)
         stds = torch.exp(log_stds)
+
         if self.stochastic_tanh:
             action_distributions = Independent(TransformedDistribution(Normal(means, stds), TanhTransform(cache_size=1)),1)
         else:
@@ -230,9 +230,12 @@ class StochDTPredictor(BasePredictor):
             entropies = -action_distributions.log_prob(action_distributions.rsample(sample_shape=torch.Size([self.approximate_entropy_samples]))).mean(dim=0)
         else:
             entropies = action_distributions.entropy()
-        return action_preds, action_log_probs, entropies
+        if eval:
+            return torch.tanh(means), None, None
+        else:
+            return action_preds, action_log_probs, entropies
 
-    def get_action(self, states, actions, rewards, returns_to_go, timesteps, **kwargs):
+    def get_action(self, states, actions, rewards, returns_to_go, timesteps, eval=False, **kwargs):
         # we don't care about the past rewards in this model
 
         states = states.reshape(1, -1, self.state_dim)
@@ -266,6 +269,6 @@ class StochDTPredictor(BasePredictor):
         else:
             attention_mask = None
 
-        action_preds, _, _ = self.forward(states, actions, None, returns_to_go, timesteps, attention_mask=attention_mask, **kwargs)
+        action_preds, _, _ = self.forward(states, actions, None, returns_to_go, timesteps, attention_mask=attention_mask, eval=eval, **kwargs)
 
         return action_preds[0,-1]
