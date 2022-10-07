@@ -29,36 +29,36 @@ def get_env(env_name):
     return env, env.observation_space.shape[0], env.action_space.shape[0]
 
 def get_predictor(state_dim, act_dim, config):
-    transformer = get_transformer(name=config.predictor.name,
-                                    embedding_dim=config.predictor.hidden_size,
-                                    n_layer=config.predictor.n_layer,
-                                    n_head=config.predictor.n_head,
-                                    n_inner= config.predictor.n_inner,
-                                    activation_function=config.predictor.activation_function,
-                                    n_positions=config.predictor.n_positions,
-                                    resid_pdrop=config.predictor.resid_pdrop,
-                                    attn_pdrop= config.predictor.attn_pdrop)
-    if config.predictor.name == "gpt2":
+    transformer = get_transformer(name=config.algorithm.predictor.name,
+                                    embedding_dim=config.algorithm.predictor.hidden_size,
+                                    n_layer=config.algorithm.predictor.n_layer,
+                                    n_head=config.algorithm.predictor.n_head,
+                                    n_inner= config.algorithm.predictor.n_inner,
+                                    activation_function=config.algorithm.predictor.activation_function,
+                                    n_positions=config.algorithm.predictor.n_positions,
+                                    resid_pdrop=config.algorithm.predictor.resid_pdrop,
+                                    attn_pdrop= config.algorithm.predictor.attn_pdrop)
+    if config.algorithm.predictor.name == "gpt2":
         return DTPredictor(state_dim=state_dim,
                            act_dim=act_dim,
                            transformer=transformer,
-                           hidden_size=config.predictor.hidden_size,
-                           max_length=config.predictor.K,
+                           hidden_size=config.algorithm.predictor.hidden_size,
+                           max_length=config.algorithm.predictor.K,
                            max_ep_len=config.env.max_ep_len,
-                           action_tanh=config.predictor.action_tanh)
-    elif config.predictor.name == "stochastic_gpt2":
+                           action_tanh=config.algorithm.predictor.action_tanh)
+    elif config.algorithm.predictor.name == "stochastic_gpt2":
         return StochDTPredictor(state_dim,
                                 act_dim=act_dim,
                                 transformer=transformer,
-                                hidden_size=config.predictor.hidden_size,
-                                max_length=config.predictor.K,
+                                hidden_size=config.algorithm.predictor.hidden_size,
+                                max_length=config.algorithm.predictor.K,
                                 max_ep_len=config.env.max_ep_len,
-                                action_tanh=config.predictor.action_tanh,
-                                log_std_min=config.predictor.log_std_min,
-                                log_std_max=config.predictor.log_std_max,
-                                remove_pos_embs=config.predictor.remove_pos_embs,
-                                stochastic_tanh=config.predictor.stochastic_tanh,
-                                approximate_entropy_samples=config.predictor.approximate_entropy_samples)
+                                action_tanh=config.algorithm.predictor.action_tanh,
+                                log_std_min=config.algorithm.predictor.log_std_min,
+                                log_std_max=config.algorithm.predictor.log_std_max,
+                                remove_pos_embs=config.algorithm.predictor.remove_pos_embs,
+                                stochastic_tanh=config.algorithm.predictor.stochastic_tanh,
+                                approximate_entropy_samples=config.algorithm.predictor.approximate_entropy_samples)
     else: 
         raise NotImplementedError
 
@@ -77,7 +77,7 @@ def get_buffer(state_dim, act_dim, config):
                           state_dim=state_dim,
                           action_dim=act_dim,
                           batch_size=config.batch_size,
-                          max_len=config.predictor.K,
+                          max_len=config.algorithm.predictor.K,
                           max_ep_len=config.env.max_ep_len,
                           device=config.device,
                           rtg_scale=config.buffer.scale,

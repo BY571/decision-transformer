@@ -16,8 +16,7 @@ seed: 42
 defaults:
   - _self_
   - env: hopper
-  - algorithm: decision_transformer
-  - predictor: gpt2 # TODO: add predictor to algorithm not here!
+  - algorithm: dt
   - buffer: r2gbuffer
 
 hydra:
