@@ -327,7 +327,7 @@ class Trainer():
                     print(f'{k}: {v}')
             
             if ep % self.checkpoint_interval == 0:
-                self.algo.save_ckpt()
+                self.algo.save_ckpt(f"checkpoint_{ep}.pth")
             
             if self.env_interaction_steps >= self.max_interactions:
                 break
@@ -358,5 +358,5 @@ class Trainer():
                 for k, v in log_info.items():
                     print(f'{k}: {v}')
             
-                    
-        
+            if ep % self.checkpoint_interval == 0:
+                self.algo.save_ckpt(f"checkpoint_{ep}.pth")
