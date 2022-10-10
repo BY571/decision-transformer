@@ -158,8 +158,8 @@ class Trainer():
         returns = np.array(returns)
         sorted_inds = np.argsort(returns)  # lowest to highest
         # select best x based on buffer size
-        trajectories = [trajectories[index] for index in sorted_inds]
-        trajectories = trajectories[config.buffer.max_size:]
+        trajectories = [trajectories[index] for index in sorted_inds][::-1] # order from highest to lowest
+        trajectories = trajectories[:config.buffer.max_size] # take x best
         # add to buffer
         for traj in trajectories:
             self.buffer.add_sample(states=traj["observations"], actions=traj["actions"], rewards=traj["rewards"])
