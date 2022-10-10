@@ -1,1 +1,4 @@
-name: walker2f
+name: walker2d
+max_ep_len: 1000
+env_targets: [5000, 2500]
+scale: 1000.

@@ -82,7 +82,7 @@ def get_buffer(state_dim, act_dim, config):
                           max_len=config.algorithm.predictor.K,
                           max_ep_len=config.env.max_ep_len,
                           device=config.device,
-                          rtg_scale=config.buffer.scale,
+                          rtg_scale=config.env.scale,
                           state_mean=config.env.state_mean,
                           state_std=config.env.state_std)
     else:
@@ -115,6 +115,12 @@ class Trainer():
         # get_data_source
         self.buffer = get_buffer(self.state_dim, self.act_dim, config)
         
+        # load weights:
+        if config.load_checkpoint:
+            self.algo.load_ckpt(config.load_checkpoint)
+        self.checkpoint_interval = config.save_checkpoint_interval
+        self.save_name = config.run_name
+        
         self.target_return = config.init_target_return
         
         # tracking values
@@ -128,6 +134,12 @@ class Trainer():
         else:
             self.prefill_buffer(config.prefill_episodes)
         
+        # set training scheme
+        if config.training == "online":
+            self.train = self.train_online
+        else:
+            self.train = self.train_offline
+        
     def load_offline_data2buffer(self, config):
         # get current working directory
         cwg = os.getcwd()
@@ -138,6 +150,7 @@ class Trainer():
         dataset_path = root_path + dataset_path
         with open(dataset_path, 'rb') as f:
             trajectories = pickle.load(f)
+        print(f"Loaded {len(trajectories)} expert trajectories!")
         # sort trajectories from worst to best
         returns = []
         for path in trajectories:
@@ -157,12 +170,31 @@ class Trainer():
         achieved_rewards = []
         for i in range(prefill_episodes):
             random_target = np.random.random() * 100
-            trgt, steps = self.collect_samples(random_target)
+            trgt, steps = self.collect_random()
             self.env_interaction_steps += steps
             achieved_rewards.append(trgt) 
         best_trgt = max(achieved_rewards)
         if best_trgt > self.target_return:
             self.target_return = best_trgt
+    
+    def collect_random(self, ):
+        states = []
+        actions = []
+        rewards = []
+        dones = []
+        state = self.env.reset()
+        while True:
+            action = self.env.action_space.sample()
+            ns, r, d, _ = self.env.step(action)
+            states.append(state)
+            actions.append(action)
+            rewards.append(r)
+            dones.append(d)
+            if d:
+                break
+        states, actions, rewards = np.stack(states), np.stack(actions), np.stack(rewards)
+        self.buffer.add_sample(states=states, actions=actions, rewards=rewards)
+        return sum(rewards), len(rewards)
             
     def collect_samples(self, target_return):
         self.algo.set_eval_mode()
@@ -236,8 +268,7 @@ class Trainer():
 
 
             pred_return = target_return[0,-1]
-            target_return = torch.cat([target_return,
-                                    pred_return.reshape(1, 1)], dim=1)
+            target_return = torch.cat([target_return, pred_return.reshape(1, 1)], dim=1)
             timesteps = torch.cat([timesteps,
                                 torch.ones((1, 1),
                                             device=self.device, dtype=torch.long) * (t+1)], dim=1)
@@ -261,9 +292,9 @@ class Trainer():
         if achieved_return > self.target_return:
             self.target_return = achieved_return
     
-    def train(self, wandb):
+    def train_online(self, wandb):
         wandb.watch(self.algo.predictor)
-        for ep in tqdm(range(1, self.epochs+1), desc="Training", file=sys.stdout):
+        for ep in tqdm(range(1, self.epochs+1), desc="Online-Training", file=sys.stdout):
             
             # Gather new experience
             return_, steps = self.collect_samples(target_return=self.target_return)
@@ -295,7 +326,37 @@ class Trainer():
                 for k, v in log_info.items():
                     print(f'{k}: {v}')
             
+            if ep % self.checkpoint_interval == 0:
+                self.algo.save_ckpt()
+            
             if self.env_interaction_steps >= self.max_interactions:
                 break
+
+    def train_offline(self, wandb):
+        wandb.watch(self.algo.predictor)
+        for ep in tqdm(range(1, self.epochs+1), desc="Offline-Training", file=sys.stdout):
+            
+            # Train Transformer
+            loss_info = self.update()
+            
+            # Evaluate
+            eval_info = self.evaluate(target_return=self.target_return)
+            loss_info.update(eval_info)
+            
+            log_info = {"evaluate/target_reward": self.target_return,
+                        "evaluate/buffer_size": self.buffer.__len__(),
+                        "training/loss_mean": np.mean(self.train_losses),
+                        "training/loss_std": np.std(self.train_losses),
+                        "training/updates": self.num_updates,
+                        "training/epoch": ep
+                        }
+            log_info.update(loss_info)
+            wandb.log(log_info)
+            if self.print_logs:
+                print("\n" + '=' * 80)
+                print(f'Iteration {ep}')
+                for k, v in log_info.items():
+                    print(f'{k}: {v}')
+            
                     
         

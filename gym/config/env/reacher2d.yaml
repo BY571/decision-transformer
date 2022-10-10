@@ -1,1 +1,4 @@
 name: reacher2d
+max_ep_len: 100
+env_targets: [76, 40]
+scale: 10.

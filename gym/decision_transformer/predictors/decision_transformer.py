@@ -78,7 +78,7 @@ class DTPredictor(BasePredictor):
 
         return action_preds
 
-    def get_action(self, states, actions, rewards, returns_to_go, timesteps, **kwargs):
+    def get_action(self, states, actions, rewards, returns_to_go, timesteps, eval=None, **kwargs):
         # we don't care about the past rewards in this model
 
         states = states.reshape(1, -1, self.state_dim)
@@ -159,7 +159,7 @@ class StochDTPredictor(BasePredictor):
         # self.predict_return = torch.nn.Linear(hidden_size, 1)
         
 
-    def forward(self, states, actions, rewards, returns_to_go, timesteps, attention_mask=None, eval=False):
+    def forward(self, states, actions, rewards, returns_to_go, timesteps, attention_mask=None, action_target=None, eval=False):
 
         batch_size, seq_length = states.shape[0], states.shape[1]
         if attention_mask is None:
@@ -220,11 +220,11 @@ class StochDTPredictor(BasePredictor):
         action_preds = action_distributions.rsample()
         entropies = None
         action_log_probs = None
-        # if target_actions != None:
+        if action_target != None:
         # Clamp target actions to prevent nans
-        eps = torch.finfo(actions.dtype).eps
-        target_actions = torch.clamp(actions, -1+eps, 1-eps)
-        action_log_probs = action_distributions.log_prob(target_actions)       
+            eps = torch.finfo(action_target.dtype).eps
+            action_target = torch.clamp(action_target, -1+eps, 1-eps)
+            action_log_probs = action_distributions.log_prob(action_target)       
         #entropies = action_distributions.base_dist.entropy()
         if self.stochastic_tanh:
             entropies = -action_distributions.log_prob(action_distributions.rsample(sample_shape=torch.Size([self.approximate_entropy_samples]))).mean(dim=0)

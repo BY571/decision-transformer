@@ -1,1 +1,8 @@
 name: halfcheetah
+max_ep_len: 1000
+env_targets: [12000, 6000]
+scale: 1000.
+state_mean: # TODO:
+state_std: # TODO:
+           
+           

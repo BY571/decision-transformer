@@ -2,14 +2,15 @@ import torch
 from torch import nn, Tensor
 
 class BaseAlgo():
-    def __init__(self,):
-        pass
+    def __init__(self, predictor, config):
+        self.predictor = predictor.to(config.device)
 
-    def save_ckpt(self, ):
-        raise NotImplementedError
+        
+    def save_ckpt(self, save_name: str="checkpoint.pth")-> None:
+        torch.save(self.predictor.state_dict(), save_name)
     
-    def load_ckpt(self, ):
-        raise NotImplementedError
+    def load_ckpt(self, checkpoint: str)-> None:
+        self.predictor.load_state_dict(torch.load(checkpoint))
 
     def get_action(self, ):
         raise NotImplementedError
@@ -19,8 +20,8 @@ class BaseAlgo():
 
 class DecisionTransformer(BaseAlgo):
     def __init__(self, predictor, config):
-        super().__init__()
-        self.predictor = predictor.to(config.device)
+        super().__init__(predictor, config)
+
         warmup_steps = config.algorithm.warmup_steps
         self.optimizer = torch.optim.AdamW(self.predictor.parameters(),
                                       lr=config.algorithm.learning_rate,
@@ -68,10 +69,10 @@ class DecisionTransformer(BaseAlgo):
 
 class OnlineDecisionTransformer(BaseAlgo):
     def __init__(self, predictor, config):
-        super().__init__()
+        super().__init__(predictor, config)
         
-        self.predictor = predictor.to(config.device)
-        self.target_entropy = - self.predictor.act_dim
+        self.act_dim = self.predictor.act_dim
+        self.target_entropy = - self.act_dim
         warmup_steps = config.algorithm.warmup_steps
         self.optimizer = torch.optim.AdamW(self.predictor.parameters(),
                                       lr=config.algorithm.learning_rate,
@@ -106,18 +107,19 @@ class OnlineDecisionTransformer(BaseAlgo):
 
     def train(self, states, actions, rewards, rtg, timesteps, attention_mask):
 
-        # action_target = torch.clone(actions)
+        action_target = torch.clone(actions)
 
-        _, action_log_probs, entropies = self.predictor.forward(states,
+        action_preds, action_log_probs, entropies = self.predictor.forward(states,
                                               actions,
                                               rewards,
                                               rtg[:,:-1],
                                               timesteps,
-                                              attention_mask=attention_mask)
+                                              attention_mask=attention_mask,
+                                              action_target=action_target)
 
         # act_dim = action_preds.shape[2]
-        # action_preds = action_preds.reshape(-1, act_dim)[attention_mask.reshape(-1) > 0]
-        # action_target = action_target.reshape(-1, act_dim)[attention_mask.reshape(-1) > 0]
+        action_preds = action_preds.reshape(-1, self.act_dim)[attention_mask.reshape(-1) > 0]
+        action_target = action_target.reshape(-1, self.act_dim)[attention_mask.reshape(-1) > 0]
         action_log_probs = action_log_probs.reshape(-1)[attention_mask.reshape(-1) > 0]
         entropies = entropies.reshape(-1)[attention_mask.reshape(-1) > 0]
 
@@ -132,8 +134,10 @@ class OnlineDecisionTransformer(BaseAlgo):
         self.multiplier_optimizer.zero_grad()
         entropy_loss.backward()
         self.multiplier_optimizer.step()
-        
-        return {"training/loss": loss.detach().cpu().item(),
+        with torch.no_grad():
+            loss_info = {"training/loss": loss.detach().cpu().item(),
+                "training/action_error": torch.mean((action_preds-action_target)**2).detach().cpu().item(),
                 "training/entropy_loss": entropy_loss.detach().cpu().item(),
                 "training/entropy_multiplier": torch.exp(self.log_entropy_multiplier).detach().cpu().item(),
                 "training/entropy": torch.mean(entropies).item()}
+        return loss_info
