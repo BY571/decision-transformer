@@ -135,8 +135,8 @@ class OnlineDecisionTransformer(BaseAlgo):
         self.multiplier_optimizer.zero_grad()
         entropy_loss.backward()
         self.multiplier_optimizer.step()
-        self.optimizer.step()
         self.scheduler.step()
+        self.multiplier_scheduler.step()
         with torch.no_grad():
             loss_info = {"training/loss": loss.detach().cpu().item(),
                 "training/action_error": torch.mean((action_preds-action_target)**2).detach().cpu().item(),
@@ -228,9 +228,8 @@ class OnlineDecisionTransformerRND(BaseAlgo):
         self.multiplier_optimizer.zero_grad()
         entropy_loss.backward()
         self.multiplier_optimizer.step()
-        self.optimizer.step()
         self.scheduler.step()
-        
+        self.multiplier_scheduler.step()
         with torch.no_grad():
             loss_info = {"training/loss": loss.detach().cpu().item(),
                 "training/action_error": torch.mean((action_preds-action_target)**2).detach().cpu().item(),
