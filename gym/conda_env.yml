@@ -9,7 +9,7 @@ dependencies:
 - pip
 - pip:
   - gym==0.18.3
-  - mujoco
+  - mujoco-py<2.2,>=2.1
   - numpy==1.20.3
   - torch==1.8.1
   - transformers==4.5.1
