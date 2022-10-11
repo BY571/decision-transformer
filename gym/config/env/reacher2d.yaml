@@ -1,4 +1,6 @@
 name: reacher2d
+dataset: medium # medium, medium-replay, medium-expert, expert
 max_ep_len: 100
 env_targets: [76, 40]
 scale: 10.
+# no dataset yet for reacher!

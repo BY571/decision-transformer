@@ -11,13 +11,13 @@ epochs: 200
 max_interactions: 100000
 init_target_return: 3600
 prefill_episodes: 1000
-prefill_offline_data: True
+prefill_offline_data: True # use expert trajectories to fill buffer
 num_updates: 300 # utd ratio
 batch_size: 256
 
 # evaluation
 eval_runs: 10
-eval_context: 5
+eval_context: 5 # input window size
 
 print_logs: True
 device: cuda:0
@@ -26,9 +26,9 @@ seed: 42
 defaults:
   - _self_  
   - env: hopper
-  - algorithm: odt
+  - algorithm: odt # odt: online decision transformer with entropy and stochastic predictor, dt: deterministic decision transformer
   - buffer: r2gbuffer
 
 hydra:
   run: 
-    dir: outputs/training/${now:%Y-%m-%d}/${run_name}
+    dir: outputs/${training}_training/${now:%Y-%m-%d}/${run_name}

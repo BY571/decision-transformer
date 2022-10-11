@@ -39,3 +39,10 @@ python run.py
 Define your run by `run_name=my_experiment`
 Adding `mode=online` will log results to Weights and Biases.
 
+### ToDos
+- upload checkpoints to wandb
+- add evaluation visualiation either "play" function for loading checkpoints after training or directly while training
+- branch off from old main to make own repo
+- add other environment parameters
+- make standard scaler for online learning / done use predefined mean-std
+
