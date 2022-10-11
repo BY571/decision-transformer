@@ -1,0 +1,10 @@
+.vs
+.vscode
+.venv
+__pycache__/
+.DS_Store
+.python-version
+*.egg-info
+*.log
+*.pyc
+wandb/

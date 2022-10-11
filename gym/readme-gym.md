@@ -21,12 +21,21 @@ Then, run the following script in order to download the datasets and save them i
 python download_d4rl_datasets.py
 ```
 
-## Example usage
+## Example usage official code
 
 Experiments can be reproduced with the following:
 
 ```
-python experiment.py --env hopper --dataset medium --model_type dt
+python experiment.py --env hopper --dataset medium --model_type dt -w True
 ```
 
 Adding `-w True` will log results to Weights and Biases.
+
+## Example usage updated code 
+
+```
+python run.py 
+```
+Define your run by `run_name=my_experiment`
+Adding `mode=online` will log results to Weights and Biases.
+
