@@ -9,10 +9,10 @@ dependencies:
 - pip
 - pip:
   - gym==0.18.3
-  - mujoco-py==2.0.2.13
+  - mujoco
   - numpy==1.20.3
   - torch==1.8.1
   - transformers==4.5.1
-  - wandb==0.9.1
+  - wandb==0.13.4
   - hydra-core==1.2.0
   - tqdm
