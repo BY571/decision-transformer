@@ -199,7 +199,7 @@ class OnlineDecisionTransformerRND(BaseAlgo):
         self.rnd_optimizer.zero_grad()
         rnd_loss.backward()
         intrinsic_reward = pred_error
-        rewards += intrinsic_reward
+        rewards += intrinsic_reward.detach()
         
         action_target = torch.clone(actions)
 
@@ -236,5 +236,6 @@ class OnlineDecisionTransformerRND(BaseAlgo):
                 "training/entropy_loss": entropy_loss.detach().cpu().item(),
                 "training/entropy_multiplier": torch.exp(self.log_entropy_multiplier).detach().cpu().item(),
                 "training/entropy": torch.mean(entropies).item(),
-                "training/intrinsic_reward": intrinsic_reward.mean().detach().cpu().item()}
+                "training/intrinsic_reward": intrinsic_reward.mean().detach().cpu().item(),
+                }
         return loss_info
