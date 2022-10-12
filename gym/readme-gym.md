@@ -39,6 +39,10 @@ python run.py
 Define your run by `run_name=my_experiment`
 Adding `mode=online` will log results to Weights and Biases.
 
+```
+pip install -U 'mujoco-py<2.2,>=2.1'
+```
+
 ### ToDos
 - upload checkpoints to wandb
 - add evaluation visualiation either "play" function for loading checkpoints after training or directly while training

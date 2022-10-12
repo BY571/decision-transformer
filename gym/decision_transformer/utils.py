@@ -3,7 +3,7 @@ from torch import nn, Tensor
 
 from decision_transformer.predictors.utils import get_transformer
 from decision_transformer.predictors.decision_transformer import DTPredictor, StochDTPredictor
-from decision_transformer.algorithm.decision_transformer import DecisionTransformer, OnlineDecisionTransformer, OnlineDecisionTransformerRND
+from decision_transformer.algorithm.decision_transformer import DecisionTransformer, OnlineDecisionTransformer, OnlineDecisionTransformerRND, RNDDecisionTransformer
 from buffer.trajectory_buffer import ReplayBuffer
 
 def get_env(env_name):
@@ -62,6 +62,8 @@ def get_algorithm(state_dim, act_dim, config):
         return OnlineDecisionTransformer(predictor=get_predictor(state_dim, act_dim, config), config=config)
     elif config.algorithm.name == "rnd-odt":
         return OnlineDecisionTransformerRND(predictor=get_predictor(state_dim, act_dim, config), config=config)
+    elif config.algorithm.name == "rnd-dt": 
+        return RNDDecisionTransformer(predictor=get_predictor(state_dim, act_dim, config), config=config)
     else:
         raise NotImplementedError
 

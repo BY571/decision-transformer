@@ -1,0 +1,11 @@
+name: rnd-dt
+warmup_steps: 10000
+learning_rate: 1.0e-4
+weight_decay: 1.0e-4
+
+rnd_hidden_size: 256
+rnd_lr: 1.0e-4
+
+defaults:
+  - _self_
+  - predictor: gpt2
