@@ -35,6 +35,7 @@ def get_predictor(state_dim, act_dim, config):
                            act_dim=act_dim,
                            transformer=transformer,
                            hidden_size=config.algorithm.predictor.hidden_size,
+                           remove_pos_embs=config.algorithm.predictor.remove_pos_embs,
                            max_length=config.eval_context,
                            max_ep_len=config.env.max_ep_len,
                            action_tanh=config.algorithm.predictor.action_tanh)

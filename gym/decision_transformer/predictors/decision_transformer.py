@@ -11,13 +11,16 @@ class DTPredictor(BasePredictor):
                  act_dim: int,
                  transformer: nn.Module,
                  hidden_size: int,
+                 remove_pos_embs=False,
                  max_length: int=None,
                  max_ep_len: int=4096,
                  action_tanh: bool=True):
         super(DTPredictor, self).__init__(state_dim, act_dim, hidden_size, transformer=transformer, max_len=max_length)
         
         self.max_length = max_length
-        self.embed_timestep = nn.Embedding(max_ep_len, hidden_size)
+        self.remove_pos_embs = remove_pos_embs
+        if not remove_pos_embs:
+            self.embed_timestep = nn.Embedding(max_ep_len, hidden_size)
         self.embed_return = torch.nn.Linear(1, hidden_size)
         self.embed_state = torch.nn.Linear(self.state_dim, hidden_size)
         self.embed_action = torch.nn.Linear(self.act_dim, hidden_size)
@@ -42,12 +45,14 @@ class DTPredictor(BasePredictor):
         state_embeddings = self.embed_state(states)
         action_embeddings = self.embed_action(actions)
         returns_embeddings = self.embed_return(returns_to_go)
-        time_embeddings = self.embed_timestep(timesteps)
 
-        # time embeddings are treated similar to positional embeddings
-        state_embeddings = state_embeddings + time_embeddings
-        action_embeddings = action_embeddings + time_embeddings
-        returns_embeddings = returns_embeddings + time_embeddings
+        # Optionally can remove, may be better for certain domains if order can be inferred by return seq
+        if not self.remove_pos_embs:
+            time_embeddings = self.embed_timestep(timesteps)
+            # time embeddings are treated similar to positional embeddings
+            state_embeddings = state_embeddings + time_embeddings
+            action_embeddings = action_embeddings + time_embeddings
+            returns_embeddings = returns_embeddings + time_embeddings
 
         # this makes the sequence look like (R_1, s_1, a_1, R_2, s_2, a_2, ...)
         # which works nice in an autoregressive sense since states predict actions
